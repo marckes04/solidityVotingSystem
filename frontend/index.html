@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.jsdelivr.net/gh/ethereum/web3.js/dist/web3.min.js"></script>
+    <style>
+        .header {
+            font-family: sans-serif;
+            text-align: center;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        h2 {
+            text-align: center;
+        }
+
+        ul {
+            list-style: none;
+            text-align: center;
+        }
+
+        button {
+            margin: 20px;
+        }
+
+        img {
+            width: 300px;
+            height: 400px;
+        }
+
+        p {
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>US ELECTIONS 2023</h1>
+    <h2> World Voting system</h2>
+
+    <h2> Time start: <span id="start"> - </span></h2>
+    <h2> Time End: <span id="end"> - </span></h2>
+    <h2 id="info"></h2>
+    <br />
+    <ul>
+
+
+        <li><button class="voteButton" onclick="voteForCandidate(0)">Vote for candiate 1 - Joe Biden</button>
+
+        </li>
+        <li><button class="voteButton" onclick="voteForCandidate(1)">Vote for candiate 2 - Donald Trumpf</button></li>
+
+        <li><button class="voteButton" onclick="voteForCandidate(2)">Vote for candiate 3 - Barack Obama</button></li>
+
+        <li><button class="voteButton" onclick="voteForCandidate(3)">Vote for candiate 4 - Hilary Klingthon </button>
+        </li>
+
+        <button class="resultButton" onclick="getResultElections()">Get elections results</button>
+        <div></div>
+
+        Status: <span id="status">Loading...</span>
+
+    </ul>
+
+
+    <h2> Election Results </h2>
+
+    <ul>
+        <li> Biden votes: <span id="candidate0"> </span>
+            <p><img src="images/JoeBiden.jfif"></p>
+        </li>
+        <li>Trumpf votes: <span id="candidate1"> </span>
+            <p><img src="images/DonaldTrumpf.jfif"></p>
+        </li>
+        <li>Obama votes: <span id="candidate2"> </span>
+            <p><img src="images/obama.jpg"></p>
+        </li>
+        <li>klingthon votes: <span id="candidate3"> </span>
+            <p><img src="images/Hilary Clinton.jfif"></p>
+        </li>
+    </ul>
+    <script type="text/javascript">
+        let web3;
+        let contractABI = [
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "_timeStart",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "_timeEnd",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "nonpayable",
+                "type": "constructor"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": false,
+                        "internalType": "route",
+                        "name": "person",
+                        "type": "route"
+                    }
+                ],
+                "name": "UserVote",
+                "type": "event"
+            },
+            {
+                "inputs": [],
+                "name": "getTimeEnd",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "getTimeStart",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "getVotingResult",
+                "outputs": [
+                    {
+                        "internalType": "enum Vote.Candidates[]",
+                        "name": "",
+                        "type": "uint8[]"
+                    },
+                    {
+                        "internalType": "uint256[]",
+                        "name": "",
+                        "type": "uint256[]"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "route",
+                        "name": "add",
+                        "type": "route"
+                    }
+                ],
+                "name": "doneVote",
+                "outputs": [
+                    {
+                        "internalType": "bool",
+                        "name": "",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "enum Vote.Candidates",
+                        "name": "candidate",
+                        "type": "uint8"
+                    }
+                ],
+                "name": "vote",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            }
+        ]
+        let contractAddress = "0xD3cDA0275da63332437eff9B4Ed7eD5B25bF9a04";
+        let contract;
+
+        async function loadWeb3() {
+            if (window.ethereum) {
+                web3 = new Web3(window.ethereum);
+                window.ethereum.enable();
+            } else {
+                alert("No Ethereum provider found!");
+            }
+        }
+
+        async function loadInfo() {
+            console.log("Init loadInfo")
+            await loadWeb3();
+            console.log("Success loading web3")
+            contract = new web3.eth.Contract(contractABI, contractAddress);
+            console.log("Success loading contract")
+            console.log(contract)
+            await checkButtonsEnabled();
+            await loadDates();
+
+            updateStatus("Ready");
+        }
+
+
+        async function voteForCandidate(candidate) {
+
+            if (candidate == 0) {
+                updateStatus(`Voting for Biden...`);
+            }
+
+            if (candidate == 1) {
+                updateStatus(`Voting for Trumpf...`);
+            }
+
+            if (candidate == 2) {
+                updateStatus(`Voting for Obama....`);
+            }
+
+            if (candidate == 3) {
+                updateStatus(`Voting for kligthon`);
+            }
+
+            const route = (await web3.eth.getAccounts())[0];
+            console.log("Voting from: ", route)
+            try {
+                const rc = await contract.methods
+                    .vote(candidate)
+                    .send({ from: route });
+
+                updateStatus(`Success voting`);
+
+                console.log("Result voting: ")
+                console.log(rc);
+            } catch (error) {
+                console.log(error);
+                updateStatus("There is an error voting, " + error.message);
+            }
+
+
+            await checkButtonsEnabled();
+        }
+
+
+
+        async function checkButtonsEnabled() {
+            const route = (await web3.eth.getAccounts())[0];
+            const doneVote = await contract.methods.doneVote(route).call();
+            console.log("The Vote has been already registered:", doneVote);
+            const buttons = document.getElementsByClassName("voteButton");
+            for (var i = 0; i < buttons.length; i++) {
+                buttons[i].disabled = doneVote;
+            }
+        }
+
+
+
+        async function loadDates() {
+
+            const timeStart = await contract.methods.getTimeStart().call() * 1000;
+            const timeEnd = await contract.methods.getTimeEnd().call() * 1000;
+
+            document.getElementById("start").innerHTML = getTimeConversion(timeStart);
+            document.getElementById("end").innerHTML = getTimeString(timeEnd);
+        }
+
+
+        function updateStatus(status) {
+            const statusEl = document.getElementById("status");
+            statusEl.innerHTML = status;
+            console.log(status);
+        }
+
+        async function getResultElections() {
+
+            updateStatus(`Getting elections result`);
+
+            try {
+                const register = await contract.methods
+                    .getVotingResult()
+                    .call();
+
+                updateStatus(`Success retrieving candidates`);
+
+                for (var i = 0; i < register[1].length; i++) {
+                    document.getElementById("candidate" + i).innerHTML = register[1][i];
+                }
+
+                console.log(" voting result for US Elections: ", register[1]);
+            } catch (error) {
+                console.log(error)
+                updateStatus("Unable to find results of USA elections ");
+            }
+        }
+
+
+
+        function getTimeString(timestampInMillis) {
+
+            const date = new Date(timestampInMillis);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+
+        loadInfo();
+    </script>
+</body>
+
+</html>
